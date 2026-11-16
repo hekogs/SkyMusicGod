@@ -17,7 +17,7 @@ Sky Music God - неофициальный проигрыватель музык
 </p>
 
 <p align="center">
-  <img src="docs/images/Mini_RU_Light.png.png" alt="Мини плеер" width="700">
+  <img src="docs/images/Mini_RU_Light.png.png" alt="Мини плеер" width="400">
 </p>
 
 
