@@ -10,13 +10,16 @@
 
 <p align="center"><b>English</b> · <a href="README.ru.md">Русский</a></p>
 
-Sky Music God is an unofficial music-sheet player for **Sky: Children of the Light** on Windows. It lets you listen to compositions locally with guitar or harp sounds, manage your music library, and optionally send keyboard inputs to the Sky game window.
-
-The main player and mini-player share **a single playback state**.
+Sky Music God is an unofficial music-sheet player for **Sky: Children of the Light** on Windows. It lets you listen to compositions locally with guitar or harp sounds, manage your music library, and optionally send keyboard inputs to the Sky game window. The main player and mini-player share **a single playback state**.
 
 <p align="center">
   <img src="docs/images/Main_EN_Light.png" alt="Main player window" width="700">
 </p>
+
+<p align="center">
+  <img src="docs/images/Mini_EN_Light.png" alt="Мини плеер" width="700">
+</p>
+
 
 ## Features
 
