@@ -17,7 +17,7 @@ Sky Music God is an unofficial music-sheet player for **Sky: Children of the Lig
 </p>
 
 <p align="center">
-  <img src="docs/images/Mini_EN_Light.png" alt="Мини плеер" width="700">
+  <img src="docs/images/Mini_EN_Light.png" alt="Мини плеер" width="400">
 </p>
 
 
