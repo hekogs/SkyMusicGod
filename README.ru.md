@@ -15,7 +15,7 @@ Sky Music God - неофициальный проигрыватель музык
 Основной и мини-плеер используют **единое состояние воспроизведения**.
 
 <p align="center">
-  <img src="docs/images/Main_EN_Light.png" alt="Основное окно плеера" width="700">
+  <img src="docs/images/Main_RU_Light.png" alt="Основное окно плеера" width="700">
 </p>
 
 ## Возможности
