@@ -264,17 +264,34 @@ impl MusicApp {
             .desired_width(input.width());
         ui.put(input, edit);
 
-        let row_top = search.bottom() + spacing::GAP_MD;
+        let filter_top = search.bottom() + spacing::GAP_SM;
+        let filter_height = spacing::ROW_HEIGHT;
+        let filter_width = (right - left) / 2.0;
+        for (part, enabled) in [(0, !self.favorites_only), (1, self.favorites_only)] {
+            let button = Rect::from_min_size(pos2(left + part as f32 * filter_width, filter_top),
+                vec2(filter_width, filter_height));
+            let hit = ui.interact(button, ui.scope_id().with(("main_favorites_filter", part)), Sense::click());
+            let bg = if enabled { PALE_BLUE } else { SEARCH_BG };
+            ui.painter().rect_filled(button.shrink2(vec2(2.0, 0.0)), spacing::GAP_SM,
+                crate::theme::shade(ui.ctx(), bg));
+            let caption = if part == 0 {
+                self.language.tr("favorites_all").to_string()
+            } else {
+                format!("♥ {}", self.language.tr("favorites_only"))
+            };
+            write_text(ui, button.center(), &caption, 11.0,
+                crate::theme::shade(ui.ctx(), if enabled { BLUE } else { SUBTEXT }), Align2::CENTER_CENTER);
+            if hit.clicked() {
+                self.favorites_only = part == 1;
+                self.library_scroll = 0.0;
+            }
+        }
+        let row_top = filter_top + filter_height + spacing::GAP_SM;
         let row_bottom = rect.bottom() - spacing::ROW_STEP;
         let list_rect = Rect::from_min_max(pos2(left, row_top), pos2(right, row_bottom));
         let row_height = spacing::ROW_STEP;
-        let needle = self.search.to_lowercase();
-        let matched: Vec<usize> = self.files.iter().enumerate()
-            .filter_map(|(i, _)| {
-                let name = self.display_file_name(i);
-                (needle.is_empty() || name.to_lowercase().contains(&needle)).then_some(i)
-            })
-            .collect();
+        self.matched_songs();
+        let matched = std::mem::take(&mut self.filtered_library.matches);
         let visible_count = ((list_rect.height() / row_height).floor() as usize).max(1);
         let max_scroll = matched.len().saturating_sub(visible_count) as f32;
         let focused_search = ui.ctx().memory(|m| m.has_focus(ui.scope_id().with("library_search_edit")));
@@ -306,14 +323,16 @@ impl MusicApp {
         }
         if matched.is_empty() {
             write_text(ui, pos2((left + right) / 2.0, row_top + 35.0),
-                self.language.tr("no_results"), 12.3, crate::theme::shade(ui.ctx(), SUBTEXT), Align2::CENTER_CENTER);
+                if self.favorites_only && self.search.is_empty() { self.language.tr("favorites_empty") }
+                else { self.language.tr("no_results") }, 12.3, crate::theme::shade(ui.ctx(), SUBTEXT), Align2::CENTER_CENTER);
         }
         let first = self.library_scroll.floor() as usize;
         let mut draw_y = row_top;
         for index in matched.iter().skip(first).take(visible_count).copied() {
             let row = Rect::from_min_max(pos2(left, draw_y), pos2(right, draw_y + spacing::ROW_HEIGHT));
             let selected = self.selected == Some(index);
-            let hovered = ui.interact(row, ui.scope_id().with(("library_song", index)), Sense::click());
+            let click_area = Rect::from_min_max(row.min, pos2(row.right() - 64.0, row.bottom()));
+            let hovered = ui.interact(click_area, ui.scope_id().with(("library_song", index)), Sense::click());
             hovered.context_menu(|ui| {
                 if ui.button(self.language.tr("rename")).clicked() {
                     self.begin_rename(index);
@@ -338,8 +357,24 @@ impl MusicApp {
                 Glyph::Note
             };
             paint_glyph(ui, icon, glyph, if selected { crate::theme::shade(ui.ctx(), BLUE) } else { crate::theme::shade(ui.ctx(), SUBTEXT) });
-            let label = crate::ui_text::fit(ui, &self.display_file_name(index), row.width() - 44.0, 12.2, crate::theme::shade(ui.ctx(), TEXT));
+            let label = crate::ui_text::fit(ui, &self.display_file_name(index), row.width() - 104.0, 12.2, crate::theme::shade(ui.ctx(), TEXT));
             write_text(ui, pos2(row.left() + 32.0, row.center().y), label, 12.2, crate::theme::shade(ui.ctx(), TEXT), Align2::LEFT_CENTER);
+            if let Some(key) = self.song_key(index) {
+                let heart_rect = Rect::from_center_size(
+                    pos2(row.right() - 44.0, row.center().y), vec2(24.0, 24.0));
+                let heart = ui.interact(heart_rect, ui.scope_id().with(("favorite_song", index)), Sense::click());
+                let favorite = self.favorites.contains(&key);
+                if heart.hovered() {
+                    ui.painter().rect_filled(heart_rect, 6.0, crate::theme::shade(ui.ctx(), PALE_BLUE));
+                    ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
+                }
+                write_text(ui, heart_rect.center(), if favorite { "♥" } else { "♡" }, 17.0,
+                    if favorite { crate::theme::rgb(ui.ctx(), 220, 77, 102) }
+                    else { crate::theme::shade(ui.ctx(), SUBTEXT) }, Align2::CENTER_CENTER);
+                if heart.clicked() {
+                    self.toggle_favorite(&key);
+                }
+            }
             let mut delete_clicked = false;
             if selected {
                 let del = Rect::from_center_size(pos2(row.right() - 14.0, row.center().y), vec2(spacing::ICON_BUTTON, spacing::ICON_BUTTON));
@@ -364,7 +399,7 @@ impl MusicApp {
             ui.painter().rect_filled(Rect::from_min_size(pos2(rail.left(), top), vec2(rail.width(), height)),
                 2.0, crate::theme::rgb(ui.ctx(), 178, 199, 224));
         }
-        let count = self.files.len();
+        let count = matched.len();
         write_text(ui, pos2(left, rect.bottom() - 20.0), self.language.song_count(count), 10.3, crate::theme::shade(ui.ctx(), SUBTEXT), Align2::LEFT_CENTER);
         if glyph_button(ui, Rect::from_center_size(pos2(right - 38.0, rect.bottom() - 20.0), vec2(24.0, 24.0)), "library_refresh", Glyph::Refresh, crate::theme::shade(ui.ctx(), SUBTEXT), None)
             .on_hover_text(self.language.tr("refresh_library")).clicked() {
@@ -379,6 +414,7 @@ impl MusicApp {
             .on_hover_text(self.language.tr("settings")).clicked() {
             self.settings_open = true;
         }
+        self.filtered_library.matches = matched;
     }
 
     
@@ -474,7 +510,7 @@ impl MusicApp {
                     Color32::from_rgba_unmultiplied(23, 35, 53, 65));
                 ui.interact(viewport, ui.scope_id().with("settings_backdrop"), Sense::click());
 
-                let card = Rect::from_center_size(viewport.center(), vec2(440.0, 392.0));
+                let card = Rect::from_center_size(viewport.center(), vec2(440.0, 480.0));
                 let bg = crate::theme::shade(ui.ctx(), CARD);
                 let line = crate::theme::shade(ui.ctx(), LINE);
                 let ink = crate::theme::shade(ui.ctx(), TEXT);
@@ -558,8 +594,68 @@ impl MusicApp {
                     Stroke::new(1.0, line));
                 let auto_row = Rect::from_min_size(pos2(start_x, card.top() + 280.0), vec2(available, 40.0));
                 toggle_row(ui, auto_row, "settings_auto_next", self.language.tr("auto_next"), &mut self.auto_next);
-                write_text(ui, pos2(card.center().x, card.bottom() - 20.0),
+                write_text(ui, pos2(card.center().x, card.top() + 332.0),
                     self.language.tr("auto_save"), 10.5, muted, Align2::CENTER_CENTER);
+
+                ui.painter().line_segment(
+                    [pos2(start_x, card.top() + 348.0),
+                     pos2(start_x + available, card.top() + 348.0)],
+                    Stroke::new(1.0, line));
+                write_text(ui, pos2(start_x, card.top() + 368.0),
+                    self.language.tr("updates"), 13.0, ink, Align2::LEFT_CENTER);
+
+                let version = format!("SkyMusicGod v{}", env!("CARGO_PKG_VERSION"));
+                write_text(ui, pos2(start_x, card.top() + 400.0),
+                    version, 12.0, ink, Align2::LEFT_CENTER);
+                let state = self.update_state.lock().unwrap_or_else(|error| error.into_inner()).clone();
+                let button = Rect::from_center_size(
+                    pos2(card.right() - 88.0, card.top() + 400.0), vec2(128.0, 32.0));
+                let checking = matches!(state, crate::update_check::UpdateState::Checking);
+                let hit = ui.interact(button, ui.scope_id().with("settings_check_updates"),
+                    if checking { Sense::hover() } else { Sense::click() });
+                ui.painter().rect_filled(button, 8.0,
+                    if checking { crate::theme::shade(ui.ctx(), SEARCH_BG) }
+                    else if hit.hovered() { crate::theme::rgb(ui.ctx(), 31, 130, 231) }
+                    else { crate::theme::shade(ui.ctx(), BLUE) });
+                write_text(ui, button.center(), self.language.tr(if checking { "updates_checking" }
+                    else { "updates_check" }), 11.5, if checking { muted } else { Color32::WHITE },
+                    Align2::CENTER_CENTER);
+                if hit.clicked() && !checking {
+                    crate::update_check::start(&self.update_state, ui.ctx().clone());
+                }
+                let status = match &state {
+                    crate::update_check::UpdateState::Idle => self.language.tr("updates_idle").to_owned(),
+                    crate::update_check::UpdateState::Checking => self.language.tr("updates_checking").to_owned(),
+                    crate::update_check::UpdateState::Current => self.language.tr("updates_current").to_owned(),
+                    crate::update_check::UpdateState::Available(version) =>
+                        format!("{} {}", self.language.tr("updates_available"), version),
+                    crate::update_check::UpdateState::Error(_) => self.language.tr("updates_error").to_owned(),
+                };
+                let color = match state {
+                    crate::update_check::UpdateState::Available(_) => crate::theme::shade(ui.ctx(), BLUE),
+                    crate::update_check::UpdateState::Error(_) => crate::theme::rgb(ui.ctx(), 191, 75, 75),
+                    _ => muted,
+                };
+                let fitted = crate::ui_text::fit(ui, &status, available, 11.5, color);
+                let line = Rect::from_min_size(pos2(start_x, card.top() + 416.0), vec2(available, 24.0));
+                let status_hover = ui.interact(line, ui.scope_id().with("updates_status"), Sense::hover());
+                if let crate::update_check::UpdateState::Error(ref detail) = state {
+                    status_hover.on_hover_text(detail);
+                }
+                write_text(ui, pos2(start_x, card.top() + 432.0),
+                    fitted, 11.5, color, Align2::LEFT_CENTER);
+                if let crate::update_check::UpdateState::Available(_) = state {
+                    let open = Rect::from_min_size(
+                        pos2(start_x, card.top() + 440.0), vec2(available, 28.0));
+                    let clicked = ui.interact(open, ui.scope_id().with("updates_open_release"), Sense::click());
+                    ui.painter().rect_filled(open, 8.0, crate::theme::shade(ui.ctx(),
+                        if clicked.hovered() { PALE_BLUE } else { SEARCH_BG }));
+                    write_text(ui, open.center(), self.language.tr("updates_open_release"), 11.5,
+                        crate::theme::shade(ui.ctx(), BLUE), Align2::CENTER_CENTER);
+                    if clicked.clicked() {
+                        ui.ctx().open_url(egui::OpenUrl::new_tab(crate::update_check::RELEASES_URL));
+                    }
+                }
             });
         if close { self.settings_open = false; }
     }

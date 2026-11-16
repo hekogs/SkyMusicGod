@@ -17,6 +17,9 @@ impl Language {
     pub fn tr(self, key: &'static str) -> &'static str {
         match key {
             "library" => ["Библиотека", "Library", "ライブラリ", "曲库", "曲庫", "Pustaka", "Biblioteca", "Pustaka", "라이브러리", "Aklatan"][self.index()],
+            "favorites_all" => ["Все", "All", "すべて", "全部", "全部", "Semua", "Todas", "Semua", "전체", "Lahat"][self.index()],
+            "favorites_only" => ["Избранное", "Favorites", "お気に入り", "收藏", "收藏", "Kegemaran", "Favoritas", "Favorit", "즐겨찾기", "Paborito"][self.index()],
+            "favorites_empty" => ["В избранном пока нет песен", "No favorite songs yet", "お気に入りの曲はまだありません", "暂无收藏歌曲", "尚無收藏歌曲", "Tiada lagu kegemaran lagi", "Ainda não há músicas favoritas", "Belum ada lagu favorit", "즐겨찾는 곡이 없습니다", "Wala pang paboritong kanta"][self.index()],
             "import_song" => ["Импортировать композицию", "Import a song", "曲をインポート", "导入曲目", "匯入曲目", "Import lagu", "Importar música", "Impor lagu", "곡 가져오기", "Mag-import ng kanta"][self.index()],
             "sort_library" => ["Сортировать по названию", "Sort by title", "名前順に並べ替え", "按名称排序", "依名稱排序", "Isih mengikut tajuk", "Ordenar por nome", "Urutkan berdasarkan judul", "제목순 정렬", "Ayusin ayon sa pamagat"][self.index()],
             "search" => ["Поиск", "Search", "検索", "搜索", "搜尋", "Cari", "Pesquisar", "Cari", "검색", "Maghanap"][self.index()],
@@ -26,6 +29,14 @@ impl Language {
             "delete_song" => ["Удалить композицию", "Delete song", "曲を削除", "删除曲目", "刪除曲目", "Padam lagu", "Excluir música", "Hapus lagu", "곡 삭제", "Burahin ang kanta"][self.index()],
             "refresh_library" => ["Обновить список песен", "Refresh song list", "曲一覧を更新", "刷新曲目列表", "重新整理曲目清單", "Muat semula senarai lagu", "Atualizar lista de músicas", "Segarkan daftar lagu", "곡 목록 새로고침", "I-refresh ang listahan"][self.index()],
             "settings" => ["Настройки", "Settings", "設定", "设置", "設定", "Tetapan", "Configurações", "Pengaturan", "설정", "Mga setting"][self.index()],
+            "updates" => ["Обновления", "Updates", "アップデート", "更新", "更新", "Kemas kini", "Atualizações", "Pembaruan", "업데이트", "Mga update"][self.index()],
+            "updates_check" => ["Проверить", "Check now", "確認", "检查", "檢查", "Semak", "Verificar", "Periksa", "확인", "Suriin"][self.index()],
+            "updates_checking" => ["Проверка…", "Checking…", "確認中…", "检查中…", "檢查中…", "Menyemak…", "Verificando…", "Memeriksa…", "확인 중…", "Sinusuri…"][self.index()],
+            "updates_idle" => ["Нажмите, чтобы проверить обновления", "Check for new releases", "新しいリリースを確認", "检查新版本", "檢查新版本", "Semak keluaran baharu", "Verifique novas versões", "Periksa rilis baru", "새 릴리스 확인", "Suriin ang bagong release"][self.index()],
+            "updates_current" => ["Установлена последняя версия", "You have the latest version", "最新版です", "已是最新版本", "已是最新版本", "Versi terkini dipasang", "Você tem a versão mais recente", "Versi sudah terbaru", "최신 버전입니다", "Pinakabagong bersyon na"][self.index()],
+            "updates_available" => ["Доступна новая версия", "New version available", "新しいバージョン", "有新版本", "有新版本", "Versi baharu tersedia", "Nova versão disponível", "Versi baru tersedia", "새 버전 제공", "May bagong bersyon"][self.index()],
+            "updates_error" => ["Не удалось проверить обновления", "Could not check for updates", "更新の確認に失敗", "无法检查更新", "無法檢查更新", "Semakan kemas kini gagal", "Falha ao verificar", "Gagal memeriksa pembaruan", "업데이트 확인 실패", "Hindi masuri ang update"][self.index()],
+            "updates_open_release" => ["Открыть GitHub Release ↗", "Open GitHub Release ↗", "GitHub Release を開く ↗", "打开 GitHub Release ↗", "開啟 GitHub Release ↗", "Buka GitHub Release ↗", "Abrir GitHub Release ↗", "Buka GitHub Release ↗", "GitHub Release 열기 ↗", "Buksan ang GitHub Release ↗"][self.index()],
             "song_one" => ["песня", "song", "曲", "首曲目", "首曲目", "lagu", "música", "lagu", "곡", "kanta"][self.index()],
             "song_few" => ["песни", "songs", "曲", "首曲目", "首曲目", "lagu", "músicas", "lagu", "곡", "kanta"][self.index()],
             "song_many" => ["песен", "songs", "曲", "首曲目", "首曲目", "lagu", "músicas", "lagu", "곡", "kanta"][self.index()],
@@ -98,7 +109,7 @@ mod tests {
         for language in Language::ALL {
             assert_eq!(Language::from_code(language.code()), Some(language));
             assert!(!language.native_name().is_empty());
-            for key in ["library", "import_song", "sort_library", "search", "no_results", "rename", "delete", "delete_song", "refresh_library", "settings", "song_one", "song_few", "song_many", "delete_question", "delete_explainer", "delete_file_prefix", "cancel", "dark_theme", "both_windows", "sky_delay", "seconds", "delay_explainer", "auto_next", "auto_save", "language", "previous_language", "next_language", "rename_song", "rename_helper", "original_preserved", "invalid_title", "save", "choose_composition", "choose_composition_status", "choose_from_library", "composition", "notes", "prev_song", "next_song", "pause", "play", "stop", "overlay_player", "send_keys", "speed", "speed_reset", "no_song", "countdown_prefix", "waiting_sky", "playing_sky", "playing_preview", "paused_focus", "paused_input", "finished", "finished_ready", "sky_ready", "preview_ready", "file_filter", "label_saved"] {
+            for key in ["library", "favorites_all", "favorites_only", "favorites_empty", "import_song", "sort_library", "search", "no_results", "rename", "delete", "delete_song", "refresh_library", "settings", "updates", "updates_check", "updates_checking", "updates_idle", "updates_current", "updates_available", "updates_error", "updates_open_release", "song_one", "song_few", "song_many", "delete_question", "delete_explainer", "delete_file_prefix", "cancel", "dark_theme", "both_windows", "sky_delay", "seconds", "delay_explainer", "auto_next", "auto_save", "language", "previous_language", "next_language", "rename_song", "rename_helper", "original_preserved", "invalid_title", "save", "choose_composition", "choose_composition_status", "choose_from_library", "composition", "notes", "prev_song", "next_song", "pause", "play", "stop", "overlay_player", "send_keys", "speed", "speed_reset", "no_song", "countdown_prefix", "waiting_sky", "playing_sky", "playing_preview", "paused_focus", "paused_input", "finished", "finished_ready", "sky_ready", "preview_ready", "file_filter", "label_saved"] {
                 
                 assert!(!language.tr(key).is_empty());
             }

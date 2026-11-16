@@ -1,5 +1,18 @@
 
-use std::{collections::BTreeMap, fs, io::Write, path::{Path, PathBuf}};
+use std::{collections::{BTreeMap, BTreeSet}, fs, io::{Read, Write}, path::{Path, PathBuf}};
+
+pub const MAX_SETTINGS_BYTES: u64 = 8 * 1024 * 1024;
+
+fn read_bounded_settings(path: &Path) -> Option<Value> {
+    let file = fs::File::open(path).ok()?;
+    if file.metadata().ok()?.len() > MAX_SETTINGS_BYTES { return None; }
+    let mut raw = Vec::new();
+    file.take(MAX_SETTINGS_BYTES + 1).read_to_end(&mut raw).ok()?;
+    if raw.len() as u64 > MAX_SETTINGS_BYTES { return None; }
+    let value: Value = serde_json::from_slice(&raw).ok()?;
+    value.is_object().then_some(value)
+}
+
 use serde_json::{json, Value};
 use crate::i18n::Language;
 use crate::audio_preview::Instrument;
@@ -18,13 +31,14 @@ pub struct Settings {
     pub auto_next: bool,
     
     pub song_titles: BTreeMap<String, String>,
+    pub favorites: BTreeSet<String>,
 }
 
 impl Default for Settings {
     fn default() -> Self {
         Self { speed: 1.0, instrument: Instrument::Guitar, selected_file: None, mini_open: false,
                mini_position: None, descending: false, dark_theme: false, language: Language::Ru, delay_seconds: 4,
-               auto_next: false, song_titles: BTreeMap::new() }
+               auto_next: false, song_titles: BTreeMap::new(), favorites: BTreeSet::new() }
     }
 }
 
@@ -63,6 +77,12 @@ impl Settings {
                 Some((file.clone(), title))
             }).take(5000).collect();
         }
+        if let Some(items) = v.get("favorites").and_then(Value::as_array) {
+            s.favorites = items.iter().filter_map(Value::as_str)
+                .filter(|name| !name.is_empty() && name.len() <= 255
+                    && !name.contains(['/', '\\']) && !name.chars().any(char::is_control))
+                .take(5000).map(ToOwned::to_owned).collect();
+        }
         s.mini_position = v.get("mini_position").and_then(Value::as_array)
             .filter(|a| a.len() == 2)
             .and_then(|a| Some([
@@ -86,18 +106,14 @@ impl Settings {
             "delay_seconds": self.delay_seconds,
             "auto_next": self.auto_next,
             "song_titles": self.song_titles,
+            "favorites": self.favorites,
             "send_keys_to_sky": false
         })
     }
     pub fn load() -> Self { Self::load_from(&Self::path()) }
 
     fn load_from(path: &Path) -> Self {
-        let read_valid = |path: &Path| {
-            fs::read_to_string(path).ok()
-                .and_then(|raw| serde_json::from_str::<Value>(&raw).ok())
-                .filter(Value::is_object)
-                .map(|value| Self::from_value(&value))
-        };
+        let read_valid = |path: &Path| read_bounded_settings(path).map(|value| Self::from_value(&value));
         read_valid(path).or_else(|| read_valid(&path.with_extension("json.bak")))
             .unwrap_or_default()
     }
@@ -126,9 +142,7 @@ impl Settings {
                 let src = wide(&temp);
                 
                 
-                let primary_valid = fs::read_to_string(file).ok()
-                    .and_then(|raw| serde_json::from_str::<Value>(&raw).ok())
-                    .is_some_and(|value| value.is_object());
+                let primary_valid = read_bounded_settings(file).is_some();
                 if !primary_valid {
                     if unsafe { MoveFileExW(src.as_ptr(), dst.as_ptr(),
                         MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH) } == 0 {
@@ -152,6 +166,39 @@ impl Settings {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn favorites_round_trip_and_reject_unsafe_filenames() {
+        let loaded = Settings::from_value(&json!({
+            "favorites": ["KaineSalvation.txt", "Sacred_Grove.txt",
+                "KaineSalvation.txt", "../escape.txt", "subdir\\escape.txt", "", 15]
+        }));
+        assert_eq!(loaded.favorites.len(), 2);
+        assert!(loaded.favorites.contains("KaineSalvation.txt"));
+        assert!(loaded.favorites.contains("Sacred_Grove.txt"));
+        let round_trip = Settings::from_value(&loaded.to_value());
+        assert_eq!(round_trip.favorites, loaded.favorites);
+        assert!(Settings::from_value(&json!({})).favorites.is_empty());
+    }
+
+    #[test]
+    fn rejects_oversized_settings_and_recovers_from_backup() {
+        let folder = std::env::temp_dir().join(format!("sky-settings-size-{}", std::process::id()));
+        fs::create_dir_all(&folder).unwrap();
+        let path = folder.join("settings.json");
+        let backup = path.with_extension("json.bak");
+        fs::write(&backup, r#"{"dark_theme":true,"language":"en"}"#).unwrap();
+        fs::write(&path, vec![b' '; MAX_SETTINGS_BYTES as usize + 1]).unwrap();
+        assert!(read_bounded_settings(&path).is_none());
+        let recovered = Settings::load_from(&path);
+        assert!(recovered.dark_theme);
+        assert_eq!(recovered.language, Language::En);
+        let mut restored = recovered.clone();
+        restored.language = Language::Ru;
+        restored.save_to(&path).unwrap();
+        assert_eq!(Settings::load_from(&path).language, Language::Ru);
+        fs::remove_dir_all(folder).unwrap();
+    }
+
     #[test]
     fn saves_replaces_and_restores_backup_after_corruption() {
         let folder = std::env::temp_dir().join(format!("sky-settings-hardening-{}", std::process::id()));

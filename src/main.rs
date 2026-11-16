@@ -5,6 +5,7 @@ mod song;
 mod windows_input;
 mod main_view;
 mod mini_view;
+mod mini_library;
 mod ui_text;
 mod settings;
 mod theme;
@@ -13,6 +14,7 @@ mod ui_tokens;
 mod i18n;
 mod window_shape;
 mod audio_preview;
+mod update_check;
 
 use eframe::egui;
 
@@ -27,8 +29,8 @@ use std::{
     time::Duration,
 };
 
-#[derive(Clone, Copy)]
-enum Action { PlayPause, Previous, Next, CloseMini, Seek(f32) }
+#[derive(Clone)]
+enum Action { PlayPause, Previous, Next, CloseMini, Seek(f32), SelectSong(String), ToggleFavorite(String) }
 
 #[derive(Clone)]
 struct MiniSnapshot {
@@ -44,6 +46,9 @@ struct MiniSnapshot {
     dark_theme: bool,
     language: Language,
     title_override: Option<String>,
+    library: Arc<Vec<mini_library::SongEntry>>,
+    selected_file: Option<String>,
+    favorites: Arc<std::collections::BTreeSet<String>>,
 }
 
 impl Default for MiniSnapshot {
@@ -61,8 +66,20 @@ impl Default for MiniSnapshot {
             dark_theme: false,
             language: Language::Ru,
             title_override: None,
+            library: Arc::new(Vec::new()),
+            selected_file: None,
+            favorites: Arc::new(std::collections::BTreeSet::new()),
         }
     }
+}
+
+#[derive(Default)]
+struct LibraryFilterCache {
+    search: String,
+    favorites_only: bool,
+    revision: u64,
+    matches: Vec<usize>,
+    initialized: bool,
 }
 
 struct MusicApp {
@@ -81,9 +98,17 @@ struct MusicApp {
     shared: Arc<Mutex<MiniSnapshot>>,
     actions: Arc<Mutex<Vec<Action>>>,
     mini_seek: Arc<Mutex<mini_view::SeekVisualState>>,
+    mini_fold: Arc<Mutex<mini_view::MiniFoldState>>,
+    mini_library_state: Arc<Mutex<mini_library::LibraryState>>,
+    mini_library: Arc<Vec<mini_library::SongEntry>>,
     seek_revision: u64,
     descending: bool,
     library_scroll: f32,
+    favorites_only: bool,
+    favorites: Arc<std::collections::BTreeSet<String>>,
+    collections_dirty: bool,
+    library_revision: u64,
+    filtered_library: LibraryFilterCache,
     delete_candidate: Option<usize>,
     finished_recently: bool,
     settings: settings::Settings,
@@ -95,6 +120,7 @@ struct MusicApp {
     delay_seconds: u64,
     auto_next: bool,
     settings_open: bool,
+    update_state: Arc<Mutex<update_check::UpdateState>>,
     song_titles: std::collections::BTreeMap<String, String>,
     rename_candidate: Option<usize>,
     rename_text: String,
@@ -124,9 +150,17 @@ impl MusicApp {
             shared: Arc::new(Mutex::new(MiniSnapshot::default())),
             actions: Arc::new(Mutex::new(Vec::new())),
             mini_seek: Arc::new(Mutex::new(mini_view::SeekVisualState::default())),
+            mini_fold: Arc::new(Mutex::new(mini_view::MiniFoldState::default())),
+            mini_library_state: Arc::new(Mutex::new(mini_library::LibraryState::default())),
+            mini_library: Arc::new(Vec::new()),
             seek_revision: 0,
             descending: preferences.descending,
             library_scroll: 0.0,
+            favorites_only: false,
+            favorites: Arc::new(preferences.favorites.clone()),
+            collections_dirty: false,
+            library_revision: 0,
+            filtered_library: LibraryFilterCache::default(),
             delete_candidate: None,
             finished_recently: false,
             settings: preferences.clone(),
@@ -138,6 +172,7 @@ impl MusicApp {
             delay_seconds: preferences.delay_seconds,
             auto_next: preferences.auto_next,
             settings_open: false,
+            update_state: Arc::new(Mutex::new(update_check::UpdateState::Idle)),
             song_titles: preferences.song_titles.clone(),
             rename_candidate: None,
             rename_text: String::new(),
@@ -204,6 +239,7 @@ impl MusicApp {
         };
         let selected_path = self.selected.and_then(|i| self.files.get(i).cloned());
         self.song_titles.insert(key, title);
+        self.collections_dirty = true;
         self.sort_files();
         self.selected = selected_path.and_then(|p| self.files.iter().position(|file| file == &p));
         self.rename_candidate = None;
@@ -219,6 +255,28 @@ impl MusicApp {
             a_name.cmp(&b_name).then_with(|| a.cmp(b))
         });
         if self.descending { self.files.reverse(); }
+        self.library_revision = self.library_revision.wrapping_add(1);
+        self.mini_library = Arc::new(self.files.iter().filter_map(|path| {
+            let key = path.file_name()?.to_string_lossy().to_string();
+            Some(mini_library::SongEntry {
+                key,
+                title: Self::title_for_path(path, &self.song_titles),
+            })
+        }).collect());
+    }
+
+    fn toggle_favorite(&mut self, key: &str) {
+        if !self.files.iter().any(|path| path.file_name().is_some_and(|name| name.to_string_lossy() == key)) {
+            return;
+        }
+        let favorites = Arc::make_mut(&mut self.favorites);
+        if !favorites.remove(key) {
+            favorites.insert(key.to_owned());
+        }
+        self.collections_dirty = true;
+        self.library_revision = self.library_revision.wrapping_add(1);
+        self.library_scroll = 0.0;
+        self.save_preferences(true);
     }
 
     fn toggle_sort(&mut self) {
@@ -264,20 +322,59 @@ impl MusicApp {
             delay_seconds: self.delay_seconds,
             auto_next: self.auto_next,
             song_titles: self.song_titles.clone(),
+            favorites: (*self.favorites).clone(),
         }
     }
 
     fn save_preferences(&mut self, force: bool) {
-        let next = self.current_settings();
-        if next != self.settings &&
-            (force || self.last_saved.is_none_or(|t| t.elapsed() >= Duration::from_secs(1))) {
+        let selected = self.selected.and_then(|i| self.files.get(i))
+            .and_then(|p| p.file_name()).map(|v| v.to_string_lossy());
+        let position = *self.mini_position.lock().unwrap_or_else(|p| p.into_inner());
+        let changed = self.collections_dirty
+            || self.player.speed != self.settings.speed
+            || self.instrument != self.settings.instrument
+            || selected.as_deref() != self.settings.selected_file.as_deref()
+            || self.mini_open != self.settings.mini_open
+            || position != self.settings.mini_position
+            || self.descending != self.settings.descending
+            || self.dark_theme != self.settings.dark_theme
+            || self.language != self.settings.language
+            || self.delay_seconds != self.settings.delay_seconds
+            || self.auto_next != self.settings.auto_next;
+        if changed && (force || self.last_saved.is_none_or(|t| t.elapsed() >= Duration::from_secs(1))) {
+            let next = self.current_settings();
             if let Err(err) = next.save() {
                 self.message = format!("Settings could not be saved: {err}");
             } else {
                 self.settings = next;
+                self.collections_dirty = false;
                 self.last_saved = Some(std::time::Instant::now());
             }
         }
+    }
+
+    fn matched_songs(&mut self) -> &[usize] {
+        if !self.filtered_library.initialized
+            || self.filtered_library.revision != self.library_revision
+            || self.filtered_library.search != self.search
+            || self.filtered_library.favorites_only != self.favorites_only
+        {
+            let needle = self.search.to_lowercase();
+            self.filtered_library.matches = self.files.iter().enumerate()
+                .filter_map(|(i, path)| {
+                    if self.favorites_only && !path.file_name()
+                        .is_some_and(|key| self.favorites.contains(key.to_string_lossy().as_ref())) {
+                        return None;
+                    }
+                    let name = Self::title_for_path(path, &self.song_titles);
+                    (needle.is_empty() || name.to_lowercase().contains(&needle)).then_some(i)
+                }).collect();
+            self.filtered_library.search.clone_from(&self.search);
+            self.filtered_library.favorites_only = self.favorites_only;
+            self.filtered_library.revision = self.library_revision;
+            self.filtered_library.initialized = true;
+        }
+        &self.filtered_library.matches
     }
 
     fn refresh(&mut self) {
@@ -303,6 +400,8 @@ impl MusicApp {
             Ok(()) => {
                 if let Some(key) = path.file_name().map(|v| v.to_string_lossy().to_string()) {
                     self.song_titles.remove(&key);
+                    if Arc::make_mut(&mut self.favorites).remove(&key) { self.collections_dirty = true; }
+                    self.collections_dirty = true;
                 }
                 if self.selected == Some(index) {
                     self.stop();
@@ -483,6 +582,14 @@ impl MusicApp {
                     self.mini_needs_position = true;
                 },
                 Action::Seek(fraction) => self.seek_fraction(fraction),
+                Action::ToggleFavorite(key) => self.toggle_favorite(&key),
+                Action::SelectSong(key) => {
+                    if let Some(index) = self.files.iter().position(|path| {
+                        path.file_name().is_some_and(|name| name.to_string_lossy() == key)
+                    }) {
+                        self.load(index);
+                    }
+                },
             }
         }
 
@@ -493,6 +600,8 @@ impl MusicApp {
             empty.language = self.language;
             empty.song = self.language.tr("no_song").into();
             empty.status_line = self.language.tr("choose_composition_status").into();
+            empty.library = self.mini_library.clone();
+            empty.favorites = Arc::clone(&self.favorites);
             *self.shared.lock().unwrap_or_else(|p| p.into_inner()) = empty;
             return;
         };
@@ -547,21 +656,31 @@ impl MusicApp {
             has_song: true,
             dark_theme: self.dark_theme,
             language: self.language,
+            library: self.mini_library.clone(),
+            selected_file: self.selected.and_then(|i| self.song_key(i)),
+            favorites: Arc::clone(&self.favorites),
         };
         *self.shared.lock().unwrap_or_else(|p| p.into_inner()) = snapshot;
     }
 
     fn mini_player(&mut self, ctx: &egui::Context) {
-        if !self.mini_open { window_shape::reset_mini(); return; }
+        if !self.mini_open {
+            window_shape::reset_mini();
+            *self.mini_fold.lock().unwrap_or_else(|p| p.into_inner()) = mini_view::MiniFoldState::default();
+            *self.mini_library_state.lock().unwrap_or_else(|p| p.into_inner()) = mini_library::LibraryState::default();
+            return;
+        }
         let snapshot = self.shared.clone();
         let actions = self.actions.clone();
         let mini_seek = self.mini_seek.clone();
+        let mini_fold = self.mini_fold.clone();
+        let library_state = self.mini_library_state.clone();
         let mini_position = self.mini_position.clone();
         let viewport_id = egui::ViewportId::from_hash_of("sky-music-god-mini");
         let mut builder = egui::ViewportBuilder::default()
                 .with_title("Sky Music God Mini Player")
-                .with_inner_size([382.0, 158.0])
-                .with_min_inner_size([382.0, 158.0])
+                .with_inner_size(mini_view::EXPANDED_SIZE)
+                .with_min_inner_size(mini_view::COMPACT_SIZE)
                 .with_resizable(false)
                 .with_has_shadow(false)
                 .with_always_on_top()
@@ -576,13 +695,38 @@ impl MusicApp {
         ctx.show_viewport_deferred(
             viewport_id, builder,
             move |ctx, _class| {
-                
                 window_shape::clip_mini();
-                
-                if let Some(rect) = ctx.input(|i| i.viewport().outer_rect) {
-                    let candidate = [rect.min.x, rect.min.y];
-                    if candidate.iter().all(|v| v.is_finite()) {
-                        *mini_position.lock().unwrap_or_else(|p| p.into_inner()) = Some(candidate);
+
+                let mut fold = mini_fold.lock().unwrap_or_else(|p| p.into_inner());
+                let mut library = library_state.lock().unwrap_or_else(|p| p.into_inner());
+                if fold.progress() > 0.0 { library.set_closed(); }
+                let fold_was_animating = fold.animating();
+                let library_was_animating = library.animating();
+                fold.tick();
+                library.tick();
+                if fold_was_animating {
+                    if let Some((size, position)) = fold.animated_geometry() {
+                        ctx.send_viewport_cmd(egui::ViewportCommand::InnerSize(size));
+                        ctx.send_viewport_cmd(egui::ViewportCommand::OuterPosition(position));
+                    }
+                } else if library_was_animating {
+                    let mini_origin = library.mini_origin.or_else(|| ctx.input(|i| i.viewport().outer_rect.map(|r| library.window_to_mini(r.min))));
+                    if let Some(mini_origin) = mini_origin {
+                        let extension = library.extension();
+                        let outer_position = mini_origin - egui::vec2(0.0, if library.upward { extension } else { 0.0 });
+                        ctx.send_viewport_cmd(egui::ViewportCommand::InnerSize(egui::vec2(
+                            mini_view::EXPANDED_SIZE[0], mini_view::EXPANDED_SIZE[1] + extension)));
+                        ctx.send_viewport_cmd(egui::ViewportCommand::OuterPosition(outer_position));
+                    }
+                }
+                if !fold_was_animating && !library_was_animating {
+                    if let Some(rect) = ctx.input(|i| i.viewport().outer_rect) {
+                        let origin = fold.expanded_origin(library.window_to_mini(rect.min));
+                        let candidate = [origin.x, origin.y];
+                        if candidate.iter().all(|v| v.is_finite() && v.abs() < 10000.0) {
+                            *mini_position.lock().unwrap_or_else(|p| p.into_inner()) = Some(candidate);
+                        }
+                        library.mini_origin = Some(library.window_to_mini(rect.min));
                     }
                 }
                 let info = snapshot.lock().unwrap_or_else(|p| p.into_inner()).clone();
@@ -591,7 +735,7 @@ impl MusicApp {
                 egui::CentralPanel::default()
                     .frame(egui::Frame::NONE.fill(egui::Color32::TRANSPARENT))
                     .show(ctx, |ui| {
-                        mini_view::render(ui, &ctx_commands, &info, &actions, &mini_seek);
+                        mini_view::render(ui, &ctx_commands, &info, &actions, &mini_seek, &mut fold, &mut library);
                     });
             },
         );

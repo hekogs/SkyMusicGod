@@ -1,6 +1,6 @@
 [package]
 name = "sky-music-god"
-version = "0.3.1"
+version = "0.3.2"
 edition = "2024"
 description = "A native Rust music-sheet player and compact overlay for Windows"
 publish = false
@@ -10,7 +10,7 @@ eframe = { version = "0.37", default-features = false, features = ["glow", "defa
 rfd = "0.17"
 serde_json = "1.0"
 rodio = { version = "=0.21.1", default-features = false, features = ["playback", "vorbis", "wav"] }
-windows-sys = { version = "0.61", features = ["Win32_UI_Input_KeyboardAndMouse", "Win32_UI_WindowsAndMessaging", "Win32_Foundation", "Win32_System_Threading", "Win32_Graphics_Gdi", "Win32_Graphics_Dwm", "Win32_Storage_FileSystem"] }
+windows-sys = { version = "0.61", features = ["Win32_UI_Input_KeyboardAndMouse", "Win32_UI_WindowsAndMessaging", "Win32_Foundation", "Win32_System_Threading", "Win32_Graphics_Gdi", "Win32_Graphics_Dwm", "Win32_Storage_FileSystem", "Win32_Networking_WinHttp"] }
 
 [patch.crates-io]
 egui-winit = { path = "vendor/egui-winit" }

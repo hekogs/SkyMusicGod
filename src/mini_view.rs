@@ -15,6 +15,73 @@ const PALE_BLUE: Color32 = Color32::from_rgb(231, 243, 255);
 const SOFT: Color32 = Color32::from_rgb(242, 245, 249);
 const TRACK: Color32 = Color32::from_rgb(229, 236, 246);
 
+pub(super) const EXPANDED_SIZE: [f32; 2] = [382.0, 158.0];
+pub(super) const COMPACT_SIZE: [f32; 2] = [48.0, 48.0];
+const FOLD_DURATION: std::time::Duration = std::time::Duration::from_millis(260);
+
+pub(super) struct MiniFoldState {
+    progress: f32,
+    from: f32,
+    target: f32,
+    started: Option<std::time::Instant>,
+    anchor: Option<egui::Pos2>,
+    drag_origin: Option<([i32; 2], [i32; 2])>,
+}
+
+impl Default for MiniFoldState {
+    fn default() -> Self {
+        Self { progress: 0.0, from: 0.0, target: 0.0, started: None, anchor: None, drag_origin: None }
+    }
+}
+
+impl MiniFoldState {
+    fn note_rect(origin: egui::Pos2, progress: f32) -> Rect {
+        let inset = 12.0 * (1.0 - progress);
+        let size = 32.0 + 16.0 * progress;
+        Rect::from_min_size(origin + vec2(inset, inset), vec2(size, size))
+    }
+
+    fn note_offset(progress: f32) -> egui::Vec2 {
+        vec2(28.0 - 4.0 * progress, 28.0 - 4.0 * progress)
+    }
+
+    pub(super) fn expanded_origin(&self, window_origin: egui::Pos2) -> egui::Pos2 {
+        window_origin + Self::note_offset(self.progress) - Self::note_offset(0.0)
+    }
+
+    pub(super) fn animating(&self) -> bool { self.started.is_some() }
+    pub(super) fn progress(&self) -> f32 { self.progress }
+
+    pub(super) fn tick(&mut self) {
+        let Some(started) = self.started else { return };
+        let linear = (started.elapsed().as_secs_f32() / FOLD_DURATION.as_secs_f32()).min(1.0);
+        let eased = linear * linear * (3.0 - 2.0 * linear);
+        self.progress = self.from + (self.target - self.from) * eased;
+        if linear >= 1.0 {
+            self.progress = self.target;
+            self.started = None;
+        }
+    }
+
+    pub(super) fn animated_geometry(&self) -> Option<(egui::Vec2, egui::Pos2)> {
+        let anchor = self.anchor?;
+        let size = vec2(
+            EXPANDED_SIZE[0] + (COMPACT_SIZE[0] - EXPANDED_SIZE[0]) * self.progress,
+            EXPANDED_SIZE[1] + (COMPACT_SIZE[1] - EXPANDED_SIZE[1]) * self.progress,
+        );
+        Some((size, anchor - Self::note_offset(self.progress)))
+    }
+
+    fn toggle(&mut self, window_origin: Option<egui::Pos2>) {
+        if self.animating() { return; }
+        let Some(origin) = window_origin else { return };
+        self.anchor = Some(origin + Self::note_offset(self.progress));
+        self.from = self.progress;
+        self.target = if self.progress > 0.5 { 0.0 } else { 1.0 };
+        self.started = Some(std::time::Instant::now());
+    }
+}
+
 #[derive(Clone, Copy)]
 enum Control { Previous, Play, Pause, Next }
 
@@ -46,7 +113,7 @@ fn text(ui: &Ui, at: egui::Pos2, text: impl AsRef<str>, size: f32, color: Color3
 
 fn icon_note(ui: &Ui, rect: Rect) {
     let painter = ui.painter();
-    painter.rect_filled(rect, 10.0, crate::theme::shade(ui.ctx(), PALE_BLUE));
+    painter.rect_filled(rect, 10.0 + (rect.width() - 32.0) * 0.375, crate::theme::shade(ui.ctx(), PALE_BLUE));
     let center = rect.center();
     let blue = crate::theme::shade(ui.ctx(), BLUE);
     painter.circle_filled(pos2(center.x - 2.7, center.y + 5.0), 3.2, blue);
@@ -116,17 +183,69 @@ pub(super) fn render(
     info: &MiniSnapshot,
     actions: &Arc<Mutex<Vec<Action>>>,
     seek_state: &Arc<Mutex<SeekVisualState>>,
+    fold: &mut MiniFoldState,
+    library: &mut crate::mini_library::LibraryState,
 ) {
-    
-    
-    
-    
-    let card = ui.max_rect();
-    let lang = info.language;
-    ui.painter().rect_filled(card, spacing::WINDOW_RADIUS, crate::theme::shade(ui.ctx(), CARD));
+    let progress = fold.progress;
+    let top = if library.upward { library.extension() } else { 0.0 };
+    let card = Rect::from_min_size(ui.max_rect().min + vec2(0.0, top),
+        vec2(EXPANDED_SIZE[0] + (COMPACT_SIZE[0] - EXPANDED_SIZE[0]) * progress,
+             EXPANDED_SIZE[1] + (COMPACT_SIZE[1] - EXPANDED_SIZE[1]) * progress));
+    let corner = spacing::WINDOW_RADIUS * (1.0 - progress) + spacing::CARD_RADIUS * progress;
+    ui.painter().rect_filled(card, corner, crate::theme::shade(ui.ctx(), CARD));
 
-    let note = Rect::from_min_size(card.min + vec2(12.0, 12.0), vec2(32.0, 32.0));
+    let note = MiniFoldState::note_rect(card.min, progress);
+    let hit_area = if progress >= 1.0 { card } else { note };
+    let response = ui.interact(hit_area, ui.scope_id().with("mini_fold_toggle"), Sense::click_and_drag());
     icon_note(ui, note);
+    if response.hovered() {
+        ctx.set_cursor_icon(if progress >= 1.0 { egui::CursorIcon::Grab } else { egui::CursorIcon::PointingHand });
+    }
+    if progress >= 1.0 && response.drag_started() {
+        fold.drag_origin = crate::window_shape::mini_drag_start();
+    }
+    if progress >= 1.0 && response.dragged() {
+        if let Some(start) = fold.drag_origin {
+            crate::window_shape::mini_drag_update(start);
+        }
+    }
+    if response.drag_stopped() {
+        fold.drag_origin = None;
+    }
+    if response.clicked() {
+        library.set_closed();
+        fold.toggle(ctx.input(|i| i.viewport().outer_rect.map(|rect| library.window_to_mini(rect.min))));
+        ctx.request_repaint();
+    }
+
+    if progress < 0.5 {
+        ui.scope(|ui| {
+            if fold.animating() {
+                ui.disable();
+                ui.set_opacity((1.0 - progress * 2.0).clamp(0.0, 1.0));
+            }
+            render_expanded_content(ui, ctx, info, actions, seek_state, library);
+        });
+    }
+    if library.progress > 0.0 && progress < 0.5 {
+        crate::mini_library::render(ui, info, actions, library, fold, card.min);
+    }
+    if fold.animating() {
+        ctx.request_repaint_after(std::time::Duration::from_millis(16));
+    }
+}
+
+fn render_expanded_content(
+    ui: &mut Ui,
+    ctx: &egui::Context,
+    info: &MiniSnapshot,
+    actions: &Arc<Mutex<Vec<Action>>>,
+    seek_state: &Arc<Mutex<SeekVisualState>>,
+    library: &mut crate::mini_library::LibraryState,
+) {
+    let top = if library.upward { library.extension() } else { 0.0 };
+    let card = Rect::from_min_size(ui.max_rect().min + vec2(0.0, top), vec2(EXPANDED_SIZE[0], EXPANDED_SIZE[1]));
+    let lang = info.language;
 
     let (original_title, subtitle) = song_labels(&info.song);
     let title = info.title_override.as_deref().unwrap_or(original_title);
@@ -152,18 +271,6 @@ pub(super) fn render(
     );
 
     
-    let grip = pos2(card.right() - 48.0, card.top() + 28.0);
-    let grip_area = Rect::from_center_size(grip, vec2(spacing::ICON_BUTTON, spacing::SMALL_BUTTON));
-    let grip_hover = ui.interact(grip_area, ui.scope_id().with("mini_grip_drag"), Sense::drag());
-    if grip_hover.hovered() {
-        ui.painter().circle_filled(grip, 13.0, crate::theme::shade(ui.ctx(), PALE_BLUE));
-        ctx.set_cursor_icon(egui::CursorIcon::Grab);
-    }
-    for dx in [-2.1, 2.1] {
-        for dy in [-4.3, 0.0, 4.3] {
-            ui.painter().circle_filled(grip + vec2(dx, dy), 1.35, crate::theme::shade(ui.ctx(), MUTED));
-        }
-    }
     let title_drag_area = Rect::from_min_max(
         pos2(card.left() + 52.0, card.top() + 4.0),
         pos2(card.right() - 64.0, card.top() + 56.0),
@@ -172,7 +279,7 @@ pub(super) fn render(
     if title_drag.hovered() {
         ctx.set_cursor_icon(egui::CursorIcon::Grab);
     }
-    if grip_hover.drag_started() || title_drag.drag_started() {
+    if title_drag.drag_started() {
         ctx.send_viewport_cmd(ViewportCommand::StartDrag);
     }
 
@@ -259,6 +366,7 @@ pub(super) fn render(
     text(ui, pos2(card.center().x, card.top() + 96.0),
         status, 10.0, crate::theme::shade(ui.ctx(), MUTED), Align2::CENTER_CENTER);
 
+    crate::mini_library::toggle_button(ui, card, library, info.library.iter().position(|entry| Some(entry.key.as_str()) == info.selected_file.as_deref()));
     let buttons_y = card.top() + 128.0;
     let middle = card.center().x;
     if control(ui, pos2(middle - spacing::TRACK_CONTROL_STEP, buttons_y), spacing::SMALL_BUTTON, Control::Previous, "mini_previous", info.has_song) {
@@ -291,5 +399,27 @@ mod tests {
             ("Speak Softly, Love", "Godfather Theme"));
         assert_eq!(song_labels("Sacred Grove"),
             ("Sacred Grove", "Sky Music God"));
+    }
+
+    #[test]
+    fn mini_fold_keeps_note_center_fixed_on_screen() {
+        let expanded = pos2(120.0, 80.0);
+        let mut fold = MiniFoldState::default();
+        assert_eq!(fold.expanded_origin(expanded), expanded);
+        fold.toggle(Some(expanded));
+        fold.progress = 1.0;
+        fold.started = None;
+        let (size, compact) = fold.animated_geometry().unwrap();
+        assert_eq!(size, vec2(COMPACT_SIZE[0], COMPACT_SIZE[1]));
+        assert_eq!(compact, pos2(124.0, 84.0));
+        assert_eq!(compact + MiniFoldState::note_offset(1.0), expanded + MiniFoldState::note_offset(0.0));
+        assert_eq!(fold.expanded_origin(compact), expanded);
+
+        fold.toggle(Some(compact));
+        fold.progress = 0.0;
+        fold.started = None;
+        let (size, restored) = fold.animated_geometry().unwrap();
+        assert_eq!(size, vec2(EXPANDED_SIZE[0], EXPANDED_SIZE[1]));
+        assert_eq!(restored, expanded);
     }
 }
