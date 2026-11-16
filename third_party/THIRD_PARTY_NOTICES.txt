@@ -1,0 +1,22 @@
+Third-party source included in this repository
+
+The directory vendor/egui-winit contains a locally patched copy of
+egui-winit 0.37.0 by the egui contributors.
+
+Project: https://github.com/emilk/egui
+Crate: https://crates.io/crates/egui-winit/0.37.0
+License: MIT OR Apache-2.0
+
+The texts for these licenses are included as:
+  third_party/egui/egui-LICENSE-MIT.txt
+  third_party/egui/egui-LICENSE-APACHE.txt
+
+Other Rust dependencies are obtained through Cargo and retain their
+respective copyright notices and licenses.
+
+The bundled instrument recordings are not from Sky. They are drawn from
+Meta Open Sound (Meta Nylon Guitar) and Versilian Community
+Sample Library (Folk Harp), all licensed under Creative Commons CC0 1.0
+Universal. Original recording URLs and file hashes are listed in
+assets/instruments/SOURCES.txt (source repository) or instruments/SOURCES.txt (portable release).
+The full CC0 license text is included as assets/instruments/LICENSE-CC0.txt in source and instruments/LICENSE-CC0.txt in the portable release.

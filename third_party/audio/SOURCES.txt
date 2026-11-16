@@ -1,0 +1,76 @@
+Sky Music God - 15-key CC0 instrument banks
+License: Creative Commons CC0 1.0 Universal
+https://creativecommons.org/publicdomain/zero/1.0/
+
+Guitar: Meta Open Sound / meta-nylon-guitar (Meta Platforms)
+https://github.com/facebookincubator/Meta-open-sound/tree/main/systems/instruments/meta-nylon-guitar
+Harp: Versilian Community Sample Library / Folk Harp
+https://github.com/sgossner/VCSL/tree/master/Chordophones/Composite%20Chordophones/Folk%20Harp
+
+The fifteen key indices map to C major from C3 to C5:
+0=C3, 1=D3, 2=E3, 3=F3, 4=G3, 5=A3, 6=B3, 7=C4, 8=D4, 9=E4, 10=F4, 11=G4, 12=A4, 13=B4, 14=C5
+Guitar: original Meta OGG Vorbis fingerstyle nylon guitar audio.
+Folk Harp: original WAV files; missing diatonic pitches use nearby CC0
+recordings with -1 semitone playback pitch correction (see sample table).
+Each row contains a source URL and SHA-256 hash for provenance.
+
+Guitar/0.ogg key=0 target=C3 source=C3 shift=0 bytes=79431 sha256=1d2fc1967e765530d1182f11896fef16a52427b81eae3a5e3386aa56828bc2a2
+  https://raw.githubusercontent.com/facebookincubator/Meta-open-sound/main/systems/instruments/meta-nylon-guitar/ogg/INSGuitarNylon_StringA_Vel01Finger_C3_01.ogg
+Guitar/1.ogg key=1 target=D3 source=D3 shift=0 bytes=84240 sha256=43afba225f1fcf91801b54678cc7e502c6da532c36366491410b960c50ac9a4d
+  https://raw.githubusercontent.com/facebookincubator/Meta-open-sound/main/systems/instruments/meta-nylon-guitar/ogg/INSGuitarNylon_StringA_Vel01Finger_D3_01.ogg
+Guitar/2.ogg key=2 target=E3 source=E3 shift=0 bytes=67345 sha256=bb708d759c86ead11a307da883e07aa81adb99b2f6c63dd9ee9f146529cf5c53
+  https://raw.githubusercontent.com/facebookincubator/Meta-open-sound/main/systems/instruments/meta-nylon-guitar/ogg/INSGuitarNylon_StringD_Vel01Finger_E3_01.ogg
+Guitar/3.ogg key=3 target=F3 source=F3 shift=0 bytes=54782 sha256=284562ba17dc0737e6b6a461de228bfe74621067dfb6f4133f7092aa9e824c53
+  https://raw.githubusercontent.com/facebookincubator/Meta-open-sound/main/systems/instruments/meta-nylon-guitar/ogg/INSGuitarNylon_StringD_Vel01Finger_F3_01.ogg
+Guitar/4.ogg key=4 target=G3 source=G3 shift=0 bytes=59905 sha256=2b749530ab86dbc3479533778367672d67bf541a618c9d6cbc8963449d5f057a
+  https://raw.githubusercontent.com/facebookincubator/Meta-open-sound/main/systems/instruments/meta-nylon-guitar/ogg/INSGuitarNylon_StringD_Vel01Finger_G3_01.ogg
+Guitar/5.ogg key=5 target=A3 source=A3 shift=0 bytes=44661 sha256=b920b3aa7eb3597acd7a7f1498f082785feb537a548fcf20cb076aee1ebca96c
+  https://raw.githubusercontent.com/facebookincubator/Meta-open-sound/main/systems/instruments/meta-nylon-guitar/ogg/INSGuitarNylon_StringG_Vel01Finger_A3_01.ogg
+Guitar/6.ogg key=6 target=B3 source=B3 shift=0 bytes=45258 sha256=0059878659ba5fd0168345d471ea1f811958b863d149f3b0ed9dd28f6fe9d2d2
+  https://raw.githubusercontent.com/facebookincubator/Meta-open-sound/main/systems/instruments/meta-nylon-guitar/ogg/INSGuitarNylon_StringG_Vel01Finger_B3_01.ogg
+Guitar/7.ogg key=7 target=C4 source=C4 shift=0 bytes=51555 sha256=533c744a20b9b561e2e7ed25d487d8c8a507b6be677234059b37dce4c8708b9f
+  https://raw.githubusercontent.com/facebookincubator/Meta-open-sound/main/systems/instruments/meta-nylon-guitar/ogg/INSGuitarNylon_StringG_Vel01Finger_C4_01.ogg
+Guitar/8.ogg key=8 target=D4 source=D4 shift=0 bytes=53935 sha256=f7539aa1bd52f3c178c9b4061fef8e65fe6c2c7a141c3498a13b3ad8e9ae04f2
+  https://raw.githubusercontent.com/facebookincubator/Meta-open-sound/main/systems/instruments/meta-nylon-guitar/ogg/INSGuitarNylon_StringG_Vel01Finger_D4_01.ogg
+Guitar/9.ogg key=9 target=E4 source=E4 shift=0 bytes=48131 sha256=9dc1a5b3001c0007f40e3cd4eb95ec070078e4d2442b1806dfd86b81895ecaf2
+  https://raw.githubusercontent.com/facebookincubator/Meta-open-sound/main/systems/instruments/meta-nylon-guitar/ogg/INSGuitarNylon_StringG_Vel01Finger_E4_01.ogg
+Guitar/10.ogg key=10 target=F4 source=F4 shift=0 bytes=43592 sha256=6ab5b233ff9551248f94b04c20c051d07494909a7378d8f2df8666448f109613
+  https://raw.githubusercontent.com/facebookincubator/Meta-open-sound/main/systems/instruments/meta-nylon-guitar/ogg/INSGuitarNylon_StringG_Vel01Finger_F4_01.ogg
+Guitar/11.ogg key=11 target=G4 source=G4 shift=0 bytes=27924 sha256=3a97215607e8d08ff9cc54bbdc01cf06270fb0a1e6007624ee6428cec6b04927
+  https://raw.githubusercontent.com/facebookincubator/Meta-open-sound/main/systems/instruments/meta-nylon-guitar/ogg/INSGuitarNylon_StringG_Vel01Finger_G4_01.ogg
+Guitar/12.ogg key=12 target=A4 source=A4 shift=0 bytes=38902 sha256=f176f33ac1a6e4a0b9c725776e2f3313e87975e6ce792b4ad005d9acea87b075
+  https://raw.githubusercontent.com/facebookincubator/Meta-open-sound/main/systems/instruments/meta-nylon-guitar/ogg/INSGuitarNylon_StringB_Vel01Finger_A4_01.ogg
+Guitar/13.ogg key=13 target=B4 source=B4 shift=0 bytes=29031 sha256=c680214fd4fc08c99f59afce6b3936392c581bdd9c3b2fc9c3977c6d9599e3dd
+  https://raw.githubusercontent.com/facebookincubator/Meta-open-sound/main/systems/instruments/meta-nylon-guitar/ogg/INSGuitarNylon_StringB_Vel01Finger_B4_01.ogg
+Guitar/14.ogg key=14 target=C5 source=C5 shift=0 bytes=21799 sha256=974b52c4cfd820c97d304c18bfea956a42efe8298d954f535200908ff2196863
+  https://raw.githubusercontent.com/facebookincubator/Meta-open-sound/main/systems/instruments/meta-nylon-guitar/ogg/INSGuitarNylon_StringB_Vel01Finger_C5_01.ogg
+Harp/0.wav key=0 target=C3 source=C3 shift=0 bytes=1382798 sha256=bfc5a2cae93793ac46bfe50c1b71d1e64e29eba34e71164c47c29e67488abd96
+  https://raw.githubusercontent.com/sgossner/VCSL/master/Chordophones/Composite%20Chordophones/Folk%20Harp/EWHarp_Normal_C3_v2_RR1.wav
+Harp/1.wav key=1 target=D3 source=D3 shift=0 bytes=1008386 sha256=362b3e4c876a6723501f7176ebce88e6eadcfad7471bd1cf2fdd0039bc789416
+  https://raw.githubusercontent.com/sgossner/VCSL/master/Chordophones/Composite%20Chordophones/Folk%20Harp/EWHarp_Normal_D3_v2_RR1.wav
+Harp/2.wav key=2 target=E3 source=E3 shift=0 bytes=1177490 sha256=ed514f90376b971b75d7ff605e6b97a1767599d312ef60bf18e91f2d6c9b43c3
+  https://raw.githubusercontent.com/sgossner/VCSL/master/Chordophones/Composite%20Chordophones/Folk%20Harp/EWHarp_Normal_E3_v2_RR1.wav
+Harp/3.wav key=3 target=F3 source=F#3 shift=-1 bytes=1166902 sha256=4a6ed3a36a0dcefb0ddd1b8b9543a7034d0bb9b6cc01fdebcda0f010cdd4733e
+  https://raw.githubusercontent.com/sgossner/VCSL/master/Chordophones/Composite%20Chordophones/Folk%20Harp/EWHarp_Normal_F%233_v2_RR1.wav
+Harp/4.wav key=4 target=G3 source=G#3 shift=-1 bytes=718130 sha256=48b5d5e32c5504ed0c47d0645c01e6722773d0af6360bcdfd94f3d9250d690ef
+  https://raw.githubusercontent.com/sgossner/VCSL/master/Chordophones/Composite%20Chordophones/Folk%20Harp/EWHarp_Normal_G%233_v2_RR1.wav
+Harp/5.wav key=5 target=A3 source=A#3 shift=-1 bytes=691094 sha256=2f10237e6926a8b4726046020abe14c80969d705fb0db66e83c6d0ac22d978f8
+  https://raw.githubusercontent.com/sgossner/VCSL/master/Chordophones/Composite%20Chordophones/Folk%20Harp/EWHarp_Normal_A%233_v2_RR1.wav
+Harp/6.wav key=6 target=B3 source=C4 shift=-1 bytes=775134 sha256=79774644727f61bd535e4b49f7eae0c31b0cac4d2714d33d8f6cd84e5db081d3
+  https://raw.githubusercontent.com/sgossner/VCSL/master/Chordophones/Composite%20Chordophones/Folk%20Harp/EWHarp_Normal_C4_v2_RR1.wav
+Harp/7.wav key=7 target=C4 source=C4 shift=0 bytes=775134 sha256=79774644727f61bd535e4b49f7eae0c31b0cac4d2714d33d8f6cd84e5db081d3
+  https://raw.githubusercontent.com/sgossner/VCSL/master/Chordophones/Composite%20Chordophones/Folk%20Harp/EWHarp_Normal_C4_v2_RR1.wav
+Harp/8.wav key=8 target=D4 source=D4 shift=0 bytes=955322 sha256=9ee0b906221272c8a51389742048158306da5f69573e57962eb62ee3c1a6ae5a
+  https://raw.githubusercontent.com/sgossner/VCSL/master/Chordophones/Composite%20Chordophones/Folk%20Harp/EWHarp_Normal_D4_v2_RR1.wav
+Harp/9.wav key=9 target=E4 source=E4 shift=0 bytes=723350 sha256=42cddd3ab551907e72893de8493b9a5aab1617dc43c3210bfed9335a5b1992e5
+  https://raw.githubusercontent.com/sgossner/VCSL/master/Chordophones/Composite%20Chordophones/Folk%20Harp/EWHarp_Normal_E4_v2_RR1.wav
+Harp/10.wav key=10 target=F4 source=F#4 shift=-1 bytes=517414 sha256=fe09d1ff1d6da6a77904e84b2edc9e17c80bdbb46e3648ed19eb63b745adf14d
+  https://raw.githubusercontent.com/sgossner/VCSL/master/Chordophones/Composite%20Chordophones/Folk%20Harp/EWHarp_Normal_F%234_v2_RR1.wav
+Harp/11.wav key=11 target=G4 source=G#4 shift=-1 bytes=348666 sha256=bd48c4e67fc45ca92f3a29b7ac8727f8e2f53bf079dac553c6fce0768e19ce11
+  https://raw.githubusercontent.com/sgossner/VCSL/master/Chordophones/Composite%20Chordophones/Folk%20Harp/EWHarp_Normal_G%234_v2_RR1.wav
+Harp/12.wav key=12 target=A4 source=A#4 shift=-1 bytes=339042 sha256=1a1e41eed114648f4950ff2638475aedc85dea31ea0c924f4d392658dee78ee4
+  https://raw.githubusercontent.com/sgossner/VCSL/master/Chordophones/Composite%20Chordophones/Folk%20Harp/EWHarp_Normal_A%234_v2_RR1.wav
+Harp/13.wav key=13 target=B4 source=C5 shift=-1 bytes=366550 sha256=75ce02fddc09d6c8c258a5c1ff79a901c5c60e434eaadc98b9dc67a741105c55
+  https://raw.githubusercontent.com/sgossner/VCSL/master/Chordophones/Composite%20Chordophones/Folk%20Harp/EWHarp_Normal_C5_v2_RR1.wav
+Harp/14.wav key=14 target=C5 source=C5 shift=0 bytes=366550 sha256=75ce02fddc09d6c8c258a5c1ff79a901c5c60e434eaadc98b9dc67a741105c55
+  https://raw.githubusercontent.com/sgossner/VCSL/master/Chordophones/Composite%20Chordophones/Folk%20Harp/EWHarp_Normal_C5_v2_RR1.wav
